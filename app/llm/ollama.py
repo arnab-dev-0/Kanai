@@ -21,26 +21,26 @@ class OllamaProvider(LLMProvider):
 
     def generate_response(
         self,
-        prompt: str,
+        messages: list[dict[str, str]],
         system_instruction: str
     ) -> str:
         """
-        Generate a response using Ollama with a system instruction.
+        Generate a response using Ollama with conversation history.
         """
 
         try:
+            conversation = [
+                {
+                    "role": "system",
+                    "content": system_instruction
+                }
+            ]
+
+            conversation.extend(messages)
+
             response = self.client.chat(
                 model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system_instruction
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
+                messages=conversation
             )
 
             content = response.message.content

@@ -2,50 +2,49 @@
 from google import genai
 from google.genai import types
 
-from app.llm.base import LLMProvider
 from app.core.config import gemini_api_key, gemini_model
+from app.llm.base import LLMProvider
 
 
 class GeminiProvider(LLMProvider):
-    """
-    Gemini implementation of the LLMProvider interface.
-    """
 
     def __init__(self):
         if not gemini_api_key:
-            raise ValueError(
-                "KANAI_GEMINI_API_KEY is missing from .env"
-            )
+            raise ValueError("Gemini API key is missing.")
 
-        self.client = genai.Client(api_key=gemini_api_key)
+        self.client = genai.Client(
+            api_key=gemini_api_key
+        )
+
         self.model = gemini_model
 
     def generate_response(
         self,
-        prompt: str,
+        messages: list[dict[str, str]],
         system_instruction: str
     ) -> str:
-        """
-        Generate a response using Gemini with a system instruction.
-        """
 
-        try:
-            response = self.client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction
-                )
+        # Convert internal message format to Gemini format
+        gemini_messages = [
+            {
+                "role": (
+                    "model"
+                    if message["role"] == "assistant"
+                    else "user"
+                ),
+                "parts": [
+                    {"text": message["content"]}
+                ]
+            }
+            for message in messages
+        ]
+
+        response = self.client.models.generate_content(
+            model=self.model,
+            contents=gemini_messages,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction
             )
+        )
 
-            if not response.text:
-                raise RuntimeError(
-                    "Gemini returned an empty response."
-                )
-
-            return response.text
-
-        except Exception as error:
-            raise RuntimeError(
-                f"Gemini response generation failed: {error}"
-            ) from error
+        return response.text or ""

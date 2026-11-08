@@ -1,5 +1,7 @@
 
 from openai import OpenAI
+from typing import cast
+from openai.types.chat import ChatCompletionMessageParam
 
 from app.llm.base import LLMProvider
 from app.core.config import openai_api_key, openai_model
@@ -21,26 +23,31 @@ class OpenAIProvider(LLMProvider):
 
     def generate_response(
         self,
-        prompt: str,
+        messages: list[dict[str, str]],
         system_instruction: str
     ) -> str:
         """
-        Generate a response using OpenAI with a system instruction.
+        Generate a response using OpenAI with conversation history.
         """
 
         try:
+            request_messages: list[ChatCompletionMessageParam] = [
+                {
+                    "role": "system",
+                    "content": system_instruction
+                }
+            ]
+
+            request_messages.extend(
+                cast(
+                    list[ChatCompletionMessageParam],
+                    messages
+                )
+            )
+
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system_instruction
-                    },
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
+                messages=request_messages
             )
 
             content = response.choices[0].message.content

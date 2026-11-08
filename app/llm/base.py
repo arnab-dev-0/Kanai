@@ -9,15 +9,17 @@ class LLMProvider(ABC):
     """
 
     @abstractmethod
-    def generate_response(self, prompt: str, system_instruction: str) -> str:
+    def generate_response(
+        self, messages: list[dict[str, str]], system_instruction: str
+    ) -> str:
         """
-        Generate a response using the selected LLM provider.
-        
+        Generate a response using conversation history.
+
         Args:
-        prompt (str): User's message.
-        system_instruction (str): Instructions defining the AI's behaviour.
-        
+        messages: List of user and assistant messages.
+        system_instruction: Instructions defining Kanai's behavior.
+
         Returns:
-        str: Generated response.
+        Generated assistant response.
         """
         pass
