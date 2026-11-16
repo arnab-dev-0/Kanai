@@ -4,29 +4,30 @@ from app.core.prompts import KANAI_SYSTEM_INSTRUCTION
 from app.memory.conversation import ConversationMemory
 
 
-def display_conversations(memory):
+def display_conversations() -> list[dict]:
+    """Display conversations with numbered selection."""
 
-    conversations = memory.list_conversations()
+    conversations = ConversationMemory.list_all_conversations()
 
     if not conversations:
         print("\nNo previous conversations found.\n")
-        return
+        return []
 
     print("\nYour conversations:\n")
 
-    for conversation in conversations:
-        print(f"ID: {conversation['id']}")
-        print(f"Created: {conversation['created_at']}")
-        print(f"Updated: {conversation['updated_at']}")
+    for index, conversation in enumerate(conversations, start=1):
+
+        title = conversation["title"] or "Untitled Conversation"
+
+        print(f"{index}. {title}")
+        print(f"   Last updated: {conversation['updated_at']}")
         print("-" * 50)
+
+    return conversations
 
 
 def select_conversation():
-
-    memory_manager = ConversationMemory()
-
-    # Remove the automatically created empty conversation.
-    memory_manager.delete_conversation()
+    """Allow the user to resume or start a conversation."""
 
     while True:
 
@@ -42,11 +43,29 @@ Choose an option:
 
         if choice == "1":
 
-            display_conversations(memory_manager)
+            conversations = display_conversations()
 
-            conversation_id = input(
-                "\nEnter conversation ID: "
+            if not conversations:
+                continue
+
+            selection = input(
+                "\nChoose a conversation number (0 to go back): "
             ).strip()
+
+            if selection == "0":
+                continue
+
+            if not selection.isdigit():
+                print("\nInvalid input. Please enter a valid number.\n")
+                continue
+
+            index = int(selection)
+
+            if index < 1 or index > len(conversations):
+                print("\nInvalid conversation number. Please try again.\n")
+                continue
+
+            conversation_id = conversations[index - 1]["id"]
 
             try:
                 memory = ConversationMemory(
@@ -54,7 +73,11 @@ Choose an option:
                 )
 
                 print("\nConversation resumed successfully.")
-                print(f"Conversation ID: {memory.conversation_id}\n")
+                print(
+                    f"Conversation: "
+                    f"{conversations[index - 1]['title'] or 'Untitled Conversation'}"
+                )
+                print()
 
                 return memory
 
@@ -72,7 +95,7 @@ Choose an option:
 
         elif choice == "3":
 
-            print("\nKanai: Until we meet again! 🦚")
+            print("\nKanai: Goodbye! Until we meet again! 🦚")
             return None
 
         else:
@@ -105,7 +128,8 @@ def main():
             command = user_input.lower()
 
             if command in ["exit", "quit"]:
-                print("\nKanai: Until we meet again! 🦚")
+
+                print("\nKanai: Goodbye! Until we meet again! 🦚")
                 break
 
             elif command == "help":
@@ -132,14 +156,34 @@ exit    - Exit Kanai
 
             elif command == "list":
 
-                display_conversations(memory)
+                display_conversations()
                 continue
 
             elif command == "resume":
 
-                conversation_id = input(
-                    "Enter conversation ID: "
+                conversations = display_conversations()
+
+                if not conversations:
+                    continue
+
+                selection = input(
+                    "\nChoose a conversation number (0 to cancel): "
                 ).strip()
+
+                if selection == "0":
+                    continue
+
+                if not selection.isdigit():
+                    print("\nInvalid input. Please enter a valid number.\n")
+                    continue
+
+                index = int(selection)
+
+                if index < 1 or index > len(conversations):
+                    print("\nInvalid conversation number. Please try again.\n")
+                    continue
+
+                conversation_id = conversations[index - 1]["id"]
 
                 try:
                     memory = ConversationMemory(
@@ -147,7 +191,11 @@ exit    - Exit Kanai
                     )
 
                     print("\nConversation resumed successfully.")
-                    print(f"Conversation ID: {memory.conversation_id}\n")
+                    print(
+                        f"Conversation: "
+                        f"{conversations[index - 1]['title'] or 'Untitled Conversation'}"
+                    )
+                    print()
 
                 except ValueError as error:
                     print(f"\nError: {error}\n")
@@ -161,7 +209,6 @@ exit    - Exit Kanai
                 print("\nKanai: Current conversation history cleared.\n")
                 continue
 
-            
             elif command == "delete":
 
                 confirmation = input(
@@ -177,14 +224,12 @@ exit    - Exit Kanai
                     memory = select_conversation()
 
                     if memory is None:
-                        print("\nKanai: Until we meet again! 🦚")
                         break
 
                 else:
                     print("\nDeletion cancelled.\n")
 
                 continue
-
 
             try:
 

@@ -1,3 +1,4 @@
+
 import uuid
 
 from app.memory.database import Database
@@ -58,6 +59,16 @@ class ConversationMemory:
         finally:
             connection.close()
 
+    def generate_title(self, first_message: str) -> str:
+        """Generate a short conversation title from the first message."""
+
+        title = " ".join(first_message.split())
+
+        if len(title) > 50:
+            title = title[:47].rsplit(" ", 1)[0] + "..."
+
+        return title
+
     def add_message(self, role: str, content: str) -> None:
         """Save a message to the current conversation."""
 
@@ -70,6 +81,17 @@ class ConversationMemory:
         connection = self.database.get_connection()
 
         try:
+            existing_message = connection.execute(
+                """
+                SELECT id
+                FROM messages
+                WHERE conversation_id = ?
+                AND role = 'user'
+                LIMIT 1
+                """,
+                (self.conversation_id,),
+            ).fetchone()
+
             connection.execute(
                 """
                 INSERT INTO messages (
@@ -81,6 +103,19 @@ class ConversationMemory:
                 """,
                 (self.conversation_id, role, content.strip()),
             )
+
+            if role == "user" and existing_message is None:
+
+                title = self.generate_title(content)
+
+                connection.execute(
+                    """
+                    UPDATE conversations
+                    SET title = ?
+                    WHERE id = ?
+                    """,
+                    (title, self.conversation_id),
+                )
 
             connection.execute(
                 """
@@ -112,7 +147,10 @@ class ConversationMemory:
                 (self.conversation_id,),
             ).fetchall()
 
-            return [{"role": row["role"], "content": row["content"]} for row in rows]
+            return [
+                {"role": row["role"], "content": row["content"]}
+                for row in rows
+            ]
 
         finally:
             connection.close()
@@ -145,22 +183,31 @@ class ConversationMemory:
         finally:
             connection.close()
 
-    def list_conversations(self) -> list[dict]:
-        """Retrieve all existing conversations."""
+    @classmethod
+    def list_all_conversations(cls) -> list[dict]:
+        """Retrieve all conversations without creating a new one."""
 
-        connection = self.database.get_connection()
+        database = Database()
+        connection = database.get_connection()
 
         try:
-            rows = connection.execute("""
+            rows = connection.execute(
+                """
                 SELECT id, title, created_at, updated_at
                 FROM conversations
                 ORDER BY updated_at DESC, id DESC
-                """).fetchall()
+                """
+            ).fetchall()
 
             return [dict(row) for row in rows]
 
         finally:
             connection.close()
+
+    def list_conversations(self) -> list[dict]:
+        """Retrieve all existing conversations."""
+
+        return self.list_all_conversations()
 
     def delete_conversation(self) -> None:
         """Delete the current conversation and its messages."""
